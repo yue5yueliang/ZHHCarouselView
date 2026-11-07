@@ -1,0 +1,18 @@
+PODS:
+  - ZHHCarouselView (0.1.0):
+    - ZHHCarouselView/Source (= 0.1.0)
+  - ZHHCarouselView/Source (0.1.0)
+
+DEPENDENCIES:
+  - ZHHCarouselView (from `../`)
+
+EXTERNAL SOURCES:
+  ZHHCarouselView:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  ZHHCarouselView: 239db5e2cab3791aad7ea26dc55100eb54e582d0
+
+PODFILE CHECKSUM: 71bf1fe543262fbf1e5046cd50a7f9cf7360d171
+
+COCOAPODS: 1.16.2
