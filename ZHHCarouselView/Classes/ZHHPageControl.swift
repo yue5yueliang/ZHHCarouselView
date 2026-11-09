@@ -11,7 +11,7 @@ import UIKit
 /// 自定义分页控件：当前页可拉长为胶囊，切换时带尺寸 / 颜色动画
 public final class ZHHPageControl: UIControl {
 
-    // MARK: - Public Properties
+    // MARK: - 对外属性
 
     /// 页数，默认 0
     public var numberOfPages: Int = 0 {
@@ -130,7 +130,7 @@ public final class ZHHPageControl: UIControl {
     /// Auto Layout 依赖此值；未实现时仅有 centerX/height 约束会得到宽度 0
     public override var intrinsicContentSize: CGSize { contentSize }
 
-    // MARK: - Private Properties
+    // MARK: - 私有属性
 
     /// 存放指示器视图
     private var indicatorViews: [UIImageView] = []
@@ -138,7 +138,7 @@ public final class ZHHPageControl: UIControl {
     /// 为 true 时 `currentPage` 变更不立刻 `setNeedsLayout`，改由动画块内 `layoutSubviews` 驱动
     private var suppressesLayoutOnPageChange = false
 
-    // MARK: - Init
+    // MARK: - 初始化
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -149,15 +149,18 @@ public final class ZHHPageControl: UIControl {
         super.init(coder: coder)
         isUserInteractionEnabled = false
     }
+}
 
-    // MARK: - Public Methods
+// MARK: - 对外方法
+
+extension ZHHPageControl {
 
     /// 设置当前页，可选择是否启用胶囊伸缩动画
     ///
     /// - Parameters:
     ///   - page: 目标页
     ///   - animated: 是否动画（仅当当前页与普通页尺寸不同时视觉差异明显）
-    func setCurrentPage(_ page: Int, animated: Bool) {
+    public func setCurrentPage(_ page: Int, animated: Bool) {
         guard page >= 0, page < numberOfPages, page != currentPage else { return }
 
         if animated, window != nil {
@@ -176,11 +179,14 @@ public final class ZHHPageControl: UIControl {
             currentPage = page
         }
     }
+}
 
-    // MARK: - Private Update Methods
+// MARK: - 指示器更新
+
+private extension ZHHPageControl {
 
     /// 更新指示器数量
-    private func updateIndicatorViews() {
+    func updateIndicatorViews() {
         indicatorViews.forEach { $0.removeFromSuperview() }
         indicatorViews.removeAll()
 
@@ -196,7 +202,7 @@ public final class ZHHPageControl: UIControl {
     }
 
     /// 更新指示器样式（颜色/图片/隐藏逻辑）
-    private func updateIndicatorViewsBehavior() {
+    func updateIndicatorViewsBehavior() {
         guard !indicatorViews.isEmpty else { return }
 
         if hidesForSinglePage && indicatorViews.count == 1 {
@@ -217,8 +223,11 @@ public final class ZHHPageControl: UIControl {
             }
         }
     }
+}
 
-    // MARK: - Layout
+// MARK: - 布局
+
+extension ZHHPageControl {
 
     public override func layoutSubviews() {
         super.layoutSubviews()

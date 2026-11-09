@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ZHHCarouselView'
-  s.version          = '1.0.0'
+  s.version          = '1.0.1'
   s.summary          = '纯 Swift 轮播视图，支持无限循环、自动播放与多种布局效果。'
 
   s.description      = <<-DESC
