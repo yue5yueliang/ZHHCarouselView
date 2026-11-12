@@ -10,6 +10,7 @@
 - 三种布局：`normal` / `linear` / `coverflow`
 - 可配置 `itemSize`、`itemSpacing`、首尾水平居中等
 - DataSource / Delegate 驱动 Cell 与页切换回调
+- 页间连续滚动进度（`fromIndex` / `toIndex` / `progress`），适合颜色插值等过渡
 - 配套 `ZHHPageControl`：圆点 / 胶囊指示器，可调尺寸与颜色
 
 ## 示例
@@ -39,7 +40,7 @@ pod 'ZHHCarouselView', :path => '../'
 也可直接依赖 git 标签：
 
 ```ruby
-pod 'ZHHCarouselView', :git => 'https://github.com/yue5yueliang/ZHHCarouselView.git', :tag => '1.0.0'
+pod 'ZHHCarouselView', :git => 'https://github.com/yue5yueliang/ZHHCarouselView.git', :tag => '1.1.0'
 ```
 
 ### Swift Package Manager
@@ -52,14 +53,14 @@ pod 'ZHHCarouselView', :git => 'https://github.com/yue5yueliang/ZHHCarouselView.
 
 1. File → Add Package Dependencies…
 2. 填入：`https://github.com/yue5yueliang/ZHHCarouselView.git`
-3. 规则选 Up to Next Major（或 Exact `1.0.0`）
+3. 规则选 Up to Next Major（或 Exact `1.1.0`）
 4. 把产品 `ZHHCarouselView` 加到目标
 
 **Package.swift**
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yue5yueliang/ZHHCarouselView.git", from: "1.0.0")
+    .package(url: "https://github.com/yue5yueliang/ZHHCarouselView.git", from: "1.1.0")
 ]
 ```
 
@@ -110,7 +111,14 @@ extension ViewController: ZHHCarouselViewDataSource {
 
 extension ViewController: ZHHCarouselViewDelegate {
     func pagerView(_ pagerView: ZHHCarouselView, didScrollFromIndex fromIndex: Int, toIndex: Int) {
+        // 离散翻页完成时再更新指示点
         pageControl.currentPage = toIndex
+    }
+
+    func pagerView(_ pagerView: ZHHCarouselView, didUpdateScrollProgress progress: CGFloat, fromIndex: Int, toIndex: Int) {
+        // 拖拽 / 减速 / 自动翻页过程中持续回调；可直接做颜色插值
+        // ambientColor = mix(colors[fromIndex], colors[toIndex], progress)
+        _ = pagerView.scrollProgress
     }
 }
 ```

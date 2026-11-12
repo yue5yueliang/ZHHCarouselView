@@ -1,11 +1,12 @@
 Pod::Spec.new do |s|
   s.name             = 'ZHHCarouselView'
-  s.version          = '1.0.1'
-  s.summary          = '纯 Swift 轮播视图，支持无限循环、自动播放与多种布局效果。'
+  s.version          = '1.1.0'
+  s.summary          = '纯 Swift 轮播视图，支持无限循环、自动播放、多种布局与页间滚动进度。'
 
   s.description      = <<-DESC
 ZHHCarouselView 提供可配置的轮播分页视图：无限循环、自动滚动、普通 / 线性缩放 / 封面流布局，
-以及配套的 ZHHPageControl 分页指示器。通过 DataSource / Delegate 驱动 Cell 与布局参数。
+配套 ZHHPageControl 分页指示器，以及页间连续滚动进度（from / to / progress）回调。
+通过 DataSource / Delegate 驱动 Cell 与布局参数。
                        DESC
 
   s.homepage         = 'https://github.com/yue5yueliang/ZHHCarouselView'

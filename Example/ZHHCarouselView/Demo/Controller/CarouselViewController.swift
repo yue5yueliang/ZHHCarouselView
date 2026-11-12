@@ -467,10 +467,18 @@ extension CarouselViewController: ZHHCarouselViewDataSource {
 
 extension CarouselViewController: ZHHCarouselViewDelegate {
 
-    /// 页索引变化时同步指示器与文案
+    /// 页索引变化时只更新指示点；文案交给连续进度回调
     func pagerView(_ pagerView: ZHHCarouselView, didScrollFromIndex fromIndex: Int, toIndex: Int) {
         pageControl.currentPage = toIndex
-        pageLabel.text = "当前第 \(toIndex + 1) 页"
+    }
+
+    /// 页间连续进度：演示 from / to / progress，业务侧可据此做颜色插值
+    func pagerView(_ pagerView: ZHHCarouselView, didUpdateScrollProgress progress: CGFloat, fromIndex: Int, toIndex: Int) {
+        if fromIndex == toIndex {
+            pageLabel.text = "当前第 \(fromIndex + 1) 页"
+        } else {
+            pageLabel.text = String(format: "第 %d → %d 页  %.0f%%", fromIndex + 1, toIndex + 1, progress * 100)
+        }
     }
 
     /// 点击某一页时提示

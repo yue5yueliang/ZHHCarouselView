@@ -65,6 +65,29 @@ public func ZHHMakeIndexSection(_ index: Int, _ section: Int) -> ZHHIndexSection
     ZHHIndexSection(index: index, section: section)
 }
 
+// MARK: - 滚动进度
+
+/// 页间连续滚动进度；供业务做颜色插值等过渡，无需自行解析无限循环 offset
+public struct ZHHCarouselScrollProgress {
+    /// 过渡起点业务页索引
+    public let fromIndex: Int
+    /// 过渡终点业务页索引（相邻页；静止时与 fromIndex 相同）
+    public let toIndex: Int
+    /// 过渡进度，范围 0...1；0 表示完全在 fromIndex，1 表示完全到达 toIndex
+    public let progress: CGFloat
+
+    /// 构造滚动进度快照
+    /// - Parameters:
+    ///   - fromIndex: 起点业务索引
+    ///   - toIndex: 终点业务索引
+    ///   - progress: 0...1 进度
+    public init(fromIndex: Int, toIndex: Int, progress: CGFloat) {
+        self.fromIndex = fromIndex
+        self.toIndex = toIndex
+        self.progress = progress
+    }
+}
+
 // MARK: - 数据源协议
 
 /// 轮播数据源：条数、Cell、布局配置
@@ -150,6 +173,18 @@ public protocol ZHHCarouselViewDelegate: AnyObject {
     func pagerViewWillBeginScrollingAnimation(_ pagerView: ZHHCarouselView)
     /// 程序性滚动动画结束（此时可能触发 section 回收）
     func pagerViewDidEndScrollingAnimation(_ pagerView: ZHHCarouselView)
+
+    /// 页间连续滚动进度回调（拖拽 / 减速 / 自动翻页 / scrollToItem 动画均会触发）
+    ///
+    /// 语义：`fromIndex` 为当前锚定页，`toIndex` 为滑动方向上的相邻页；`progress` 为 0...1。
+    /// 静止停在某页时 `fromIndex == toIndex`，`progress == 0`。业务可直接 `mix(color[from], color[to], progress)`。
+    ///
+    /// - Parameters:
+    ///   - pagerView: 当前轮播视图
+    ///   - progress: 过渡进度 0...1
+    ///   - fromIndex: 起点业务索引
+    ///   - toIndex: 终点业务索引
+    func pagerView(_ pagerView: ZHHCarouselView, didUpdateScrollProgress progress: CGFloat, fromIndex: Int, toIndex: Int)
 }
 
 public extension ZHHCarouselViewDelegate {
@@ -177,6 +212,8 @@ public extension ZHHCarouselViewDelegate {
     func pagerViewWillBeginScrollingAnimation(_ pagerView: ZHHCarouselView) {}
     /// 默认空实现：滚动动画结束
     func pagerViewDidEndScrollingAnimation(_ pagerView: ZHHCarouselView) {}
+    /// 默认空实现：滚动进度
+    func pagerView(_ pagerView: ZHHCarouselView, didUpdateScrollProgress progress: CGFloat, fromIndex: Int, toIndex: Int) {}
 }
 
 // MARK: - ZHHCarouselView
@@ -232,6 +269,9 @@ public final class ZHHCarouselView: UIView {
 
     /// 当前索引段（含虚拟 section）；未布局完成前为 (-1, -1)
     public private(set) var indexSection = ZHHIndexSection(index: -1, section: -1)
+
+    /// 最新页间滚动进度快照；每次 `scrollViewDidScroll` 更新，并同步触发进度代理
+    public private(set) var scrollProgress = ZHHCarouselScrollProgress(fromIndex: 0, toIndex: 0, progress: 0)
 
     /// 当前内容偏移
     public var contentOffset: CGPoint { collectionView?.contentOffset ?? .zero }
@@ -768,6 +808,52 @@ private extension ZHHCarouselView {
             resetPagerView(at: indexSection.index)
         }
     }
+
+    /// 按当前 offset 与锚定页计算页间进度，并发布给属性 / 代理
+    ///
+    /// 语义：`fromIndex` = 当前中线锚定业务页；`toIndex` = 滑动方向上的相邻页。
+    /// `offsetX >= currentCenterX` 时邻居为右页，否则为左页；静止时 from == to、progress == 0。
+    ///
+    /// - Parameters:
+    ///   - offsetX: 当前横向 contentOffset
+    ///   - current: 中线反算得到的锚定索引段
+    func updateScrollProgress(offsetX: CGFloat, current: ZHHIndexSection) {
+        // 单页或尚未就绪：静止态
+        guard numberOfItems > 1 else {
+            let index = max(current.index, 0)
+            publishScrollProgress(ZHHCarouselScrollProgress(fromIndex: index, toIndex: index, progress: 0))
+            return
+        }
+
+        let currentCenterX = calculateOffsetX(at: current)
+        let direction: ZHHPagerScrollDirection = offsetX >= currentCenterX ? .right : .left
+        let neighbor = nearlyIndexPath(for: current, direction: direction)
+
+        // 边界无法继续滑动时邻居等于自身，视为静止
+        guard !ZHHEqualIndexSection(neighbor, current) else {
+            publishScrollProgress(ZHHCarouselScrollProgress(fromIndex: current.index, toIndex: current.index, progress: 0))
+            return
+        }
+
+        let neighborCenterX = calculateOffsetX(at: neighbor)
+        let distance = abs(neighborCenterX - currentCenterX)
+        guard distance > 0.5 else {
+            publishScrollProgress(ZHHCarouselScrollProgress(fromIndex: current.index, toIndex: current.index, progress: 0))
+            return
+        }
+
+        // 距锚定页中心的比例；跨过中线后 current 会切到对侧页，from/to 对调但 mix(from,to,p) 仍连续
+        let rawProgress = abs(offsetX - currentCenterX) / distance
+        let progress = min(max(rawProgress, 0), 1)
+        publishScrollProgress(ZHHCarouselScrollProgress(fromIndex: current.index, toIndex: neighbor.index, progress: progress))
+    }
+
+    /// 写入 `scrollProgress` 并回调代理
+    /// - Parameter progress: 最新进度快照
+    func publishScrollProgress(_ progress: ZHHCarouselScrollProgress) {
+        scrollProgress = progress
+        delegate?.pagerView(self, didUpdateScrollProgress: progress.progress, fromIndex: progress.fromIndex, toIndex: progress.toIndex)
+    }
 }
 
 // MARK: - UICollectionViewDataSource
@@ -827,15 +913,23 @@ extension ZHHCarouselView: UICollectionViewDelegateFlowLayout {
 
 extension ZHHCarouselView {
 
-    /// 根据偏移更新 `indexSection`，并在业务页变化时通知代理
+    /// 根据偏移更新 `indexSection` 与滚动进度，并在业务页变化时通知代理
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard didLayout else { return }
 
-        let newIndexSection = calculateIndexSection(withOffsetX: scrollView.contentOffset.x)
-        guard numberOfItems > 0, isValidIndexSection(newIndexSection) else { return }
+        let offsetX = scrollView.contentOffset.x
+        let newIndexSection = calculateIndexSection(withOffsetX: offsetX)
+        guard numberOfItems > 0, isValidIndexSection(newIndexSection) else {
+            // 无有效页时保持静止进度，避免业务侧读到脏值
+            publishScrollProgress(ZHHCarouselScrollProgress(fromIndex: 0, toIndex: 0, progress: 0))
+            return
+        }
 
         let previous = indexSection
         indexSection = newIndexSection
+
+        // 进度与 pagerViewDidScroll 同频，覆盖拖拽 / 减速 / 自动翻页 / 程序性滚动
+        updateScrollProgress(offsetX: offsetX, current: newIndexSection)
 
         delegate?.pagerViewDidScroll(self)
 
